@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { appRouter } from "./_app";
-import { resetTaskStore } from "./tasks";
+import {
+  INITIAL_TASK_COUNT,
+  TASKS_PAGE_SIZE,
+  resetTaskStore,
+} from "./tasks";
 
 const caller = appRouter.createCaller({ headers: new Headers() });
 
@@ -91,5 +95,34 @@ describe("tasks router", () => {
     await expect(caller.tasks.delete({ id: "999" })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+
+  it("returns the first page with a next cursor", async () => {
+    for (let index = 1; index <= INITIAL_TASK_COUNT; index++) {
+      await caller.tasks.create({ title: `Task ${index}` });
+    }
+
+    const page = await caller.tasks.getPage({});
+
+    expect(page.items).toHaveLength(TASKS_PAGE_SIZE);
+    expect(page.items[0].title).toBe("Task 1");
+    expect(page.nextCursor).toBe(String(TASKS_PAGE_SIZE));
+  });
+
+  it("pages through all tasks using the cursor", async () => {
+    for (let index = 1; index <= INITIAL_TASK_COUNT; index++) {
+      await caller.tasks.create({ title: `Task ${index}` });
+    }
+
+    const collected: string[] = [];
+    let cursor: string | null | undefined = undefined;
+    do {
+      const page = await caller.tasks.getPage({ cursor });
+      collected.push(...page.items.map((t) => t.title));
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+
+    expect(collected).toHaveLength(INITIAL_TASK_COUNT);
+    expect(collected[INITIAL_TASK_COUNT - 1]).toBe(`Task ${INITIAL_TASK_COUNT}`);
   });
 });

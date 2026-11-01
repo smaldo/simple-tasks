@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { Task } from "@/trpc/routers/tasks";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -9,10 +10,16 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function TaskList({
   tasks,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
   onEdit,
   onDelete,
 }: {
   tasks: Task[];
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
@@ -21,12 +28,53 @@ export function TaskList({
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145]">
-      {tasks.map((task) => (
-        <TaskItem key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} />
-      ))}
-    </ul>
+    <div className="flex flex-col">
+      <ul className="flex flex-col divide-y divide-black/[.08] dark:divide-white/[.145]">
+        {tasks.map((task) => (
+          <TaskItem key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} />
+        ))}
+      </ul>
+      <InfiniteScrollSentinel
+        enabled={hasNextPage && !isFetchingNextPage}
+        onVisible={onLoadMore}
+      />
+      {isFetchingNextPage ? (
+        <p className="py-4 text-center text-sm text-zinc-500">
+          Loading more tasks...
+        </p>
+      ) : null}
+    </div>
   );
+}
+
+function InfiniteScrollSentinel({
+  enabled,
+  onVisible,
+}: {
+  enabled: boolean;
+  onVisible: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onVisibleRef = useRef(onVisible);
+
+  useEffect(() => {
+    onVisibleRef.current = onVisible;
+  }, [onVisible]);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!enabled || !element) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        onVisibleRef.current();
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  return <div ref={ref} aria-hidden="true" className="h-1" />;
 }
 
 function TaskItem({

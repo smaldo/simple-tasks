@@ -6,9 +6,9 @@ import { getServerCaller } from "@/trpc/server-client";
 async function TasksList() {
   await connection();
   const caller = await getServerCaller();
-  const tasks = await caller.tasks.getAll();
+  const firstPage = await caller.tasks.getPage({});
 
-  return <TasksManager tasks={tasks} />;
+  return <TasksManager initialPage={firstPage} />;
 }
 
 export default function Home() {

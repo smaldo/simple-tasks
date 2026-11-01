@@ -1,18 +1,17 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { useTRPC } from "@/trpc/client";
 
 export function useTaskMutations(onDone: () => void) {
   const trpc = useTRPC();
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { show } = useToast();
 
   const refresh = () => {
     onDone();
-    router.refresh();
+    queryClient.invalidateQueries(trpc.tasks.getPage.pathFilter());
   };
 
   const createTask = useMutation(

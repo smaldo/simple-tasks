@@ -11,10 +11,29 @@ const taskSchema = z.object({
 
 export type Task = z.infer<typeof taskSchema>;
 
+export type TasksPage = { items: Task[]; nextCursor: string | null };
+
+export const TASKS_PAGE_SIZE = 20;
+export const INITIAL_TASK_COUNT = 100;
+
 const globalStore = globalThis as typeof globalThis & {
   __taskStore?: { tasks: Map<string, Task>; nextId: number };
 };
-const store = (globalStore.__taskStore ??= { tasks: new Map(), nextId: 1 });
+
+function createInitialStore() {
+  const tasks = new Map<string, Task>();
+  for (let index = 1; index <= INITIAL_TASK_COUNT; index++) {
+    const id = String(index);
+    tasks.set(id, {
+      id,
+      title: `Task ${index}`,
+      creationDate: new Date(),
+    });
+  }
+  return { tasks, nextId: INITIAL_TASK_COUNT + 1 };
+}
+
+const store = (globalStore.__taskStore ??= createInitialStore());
 
 export function resetTaskStore() {
   store.tasks.clear();
@@ -23,6 +42,22 @@ export function resetTaskStore() {
 
 export const tasksRouter = router({
   getAll: publicProcedure.query(() => [...store.tasks.values()]),
+
+  getPage: publicProcedure
+    .input(z.object({ cursor: z.string().nullish() }))
+    .query(({ input }): TasksPage => {
+      const cursor = input.cursor == null ? null : Number(input.cursor);
+      const remaining = [...store.tasks.values()].filter(
+        (task) => cursor === null || Number(task.id) > cursor,
+      );
+      const items = remaining.slice(0, TASKS_PAGE_SIZE);
+      const hasMore = remaining.length > TASKS_PAGE_SIZE;
+
+      return {
+        items,
+        nextCursor: hasMore ? items[items.length - 1].id : null,
+      };
+    }),
 
   create: publicProcedure
     .input(

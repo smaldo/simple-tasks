@@ -1,17 +1,31 @@
 "use client";
 
-import type { Task } from "@/trpc/routers/tasks";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useTaskDialog } from "@/hooks/use-task-dialog";
 import { useTaskMutations } from "@/hooks/use-task-mutations";
+import { useTRPC } from "@/trpc/client";
+import type { TasksPage } from "@/trpc/routers/tasks";
 import { DeleteTaskDialog } from "./delete-task-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskList } from "./task-list";
 import type { TaskFormValues } from "./task-form";
 
-export function TasksManager({ tasks }: { tasks: Task[] }) {
+export function TasksManager({ initialPage }: { initialPage: TasksPage }) {
+  const trpc = useTRPC();
   const { dialog, close, openCreate, openEdit, openDelete } = useTaskDialog();
   const { createTask, updateTask, deleteTask, resetAll } =
     useTaskMutations(close);
+  const tasksQuery = useInfiniteQuery(
+    trpc.tasks.getPage.infiniteQueryOptions(
+      {},
+      {
+        initialCursor: null,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+        initialData: { pages: [initialPage], pageParams: [null] },
+      },
+    ),
+  );
+  const tasks = tasksQuery.data.pages.flatMap((page) => page.items);
 
   function handleSubmit(values: TaskFormValues) {
     const description = values.description || undefined;
@@ -51,6 +65,9 @@ export function TasksManager({ tasks }: { tasks: Task[] }) {
 
       <TaskList
         tasks={tasks}
+        hasNextPage={tasksQuery.hasNextPage}
+        isFetchingNextPage={tasksQuery.isFetchingNextPage}
+        onLoadMore={() => tasksQuery.fetchNextPage()}
         onEdit={(task) => {
           resetAll();
           openEdit(task);
