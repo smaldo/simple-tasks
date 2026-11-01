@@ -11,16 +11,18 @@ const taskSchema = z.object({
 
 export type Task = z.infer<typeof taskSchema>;
 
-const tasks = new Map<string, Task>();
-let nextId = 1;
+const globalStore = globalThis as typeof globalThis & {
+  __taskStore?: { tasks: Map<string, Task>; nextId: number };
+};
+const store = (globalStore.__taskStore ??= { tasks: new Map(), nextId: 1 });
 
 export function resetTaskStore() {
-  tasks.clear();
-  nextId = 1;
+  store.tasks.clear();
+  store.nextId = 1;
 }
 
 export const tasksRouter = router({
-  getAll: publicProcedure.query(() => [...tasks.values()]),
+  getAll: publicProcedure.query(() => [...store.tasks.values()]),
 
   create: publicProcedure
     .input(
@@ -31,12 +33,12 @@ export const tasksRouter = router({
     )
     .mutation(({ input }) => {
       const task: Task = {
-        id: String(nextId++),
+        id: String(store.nextId++),
         title: input.title,
         description: input.description,
         creationDate: new Date(),
       };
-      tasks.set(task.id, task);
+      store.tasks.set(task.id, task);
       return task;
     }),
 
@@ -49,7 +51,7 @@ export const tasksRouter = router({
       }),
     )
     .mutation(({ input }) => {
-      const existing = tasks.get(input.id);
+      const existing = store.tasks.get(input.id);
       if (!existing) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -63,21 +65,21 @@ export const tasksRouter = router({
           ? { description: input.description }
           : {}),
       };
-      tasks.set(updated.id, updated);
+      store.tasks.set(updated.id, updated);
       return updated;
     }),
 
   delete: publicProcedure
     .input(z.object({ id: z.string() }))
     .mutation(({ input }) => {
-      const existing = tasks.get(input.id);
+      const existing = store.tasks.get(input.id);
       if (!existing) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: `Task ${input.id} not found`,
         });
       }
-      tasks.delete(input.id);
+      store.tasks.delete(input.id);
       return { id: input.id };
     }),
 });
