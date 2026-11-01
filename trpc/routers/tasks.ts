@@ -47,9 +47,9 @@ export const tasksRouter = router({
     .input(z.object({ cursor: z.string().nullish() }))
     .query(({ input }): TasksPage => {
       const cursor = input.cursor == null ? null : Number(input.cursor);
-      const remaining = [...store.tasks.values()].filter(
-        (task) => cursor === null || Number(task.id) > cursor,
-      );
+      const remaining = [...store.tasks.values()]
+        .sort((a, b) => Number(b.id) - Number(a.id))
+        .filter((task) => cursor === null || Number(task.id) < cursor);
       const items = remaining.slice(0, TASKS_PAGE_SIZE);
       const hasMore = remaining.length > TASKS_PAGE_SIZE;
 

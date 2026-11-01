@@ -105,8 +105,10 @@ describe("tasks router", () => {
     const page = await caller.tasks.getPage({});
 
     expect(page.items).toHaveLength(TASKS_PAGE_SIZE);
-    expect(page.items[0].title).toBe("Task 1");
-    expect(page.nextCursor).toBe(String(TASKS_PAGE_SIZE));
+    expect(page.items[0].title).toBe(`Task ${INITIAL_TASK_COUNT}`);
+    expect(page.nextCursor).toBe(
+      String(INITIAL_TASK_COUNT - TASKS_PAGE_SIZE + 1),
+    );
   });
 
   it("pages through all tasks using the cursor", async () => {
@@ -123,6 +125,7 @@ describe("tasks router", () => {
     } while (cursor !== null);
 
     expect(collected).toHaveLength(INITIAL_TASK_COUNT);
-    expect(collected[INITIAL_TASK_COUNT - 1]).toBe(`Task ${INITIAL_TASK_COUNT}`);
+    expect(collected[0]).toBe(`Task ${INITIAL_TASK_COUNT}`);
+    expect(collected[INITIAL_TASK_COUNT - 1]).toBe("Task 1");
   });
 });
